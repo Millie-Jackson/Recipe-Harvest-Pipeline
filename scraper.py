@@ -8,6 +8,12 @@ class RecipeScraper:
     def __init__(self, base_url) -> None:
         self.base_url = base_url
         self.driver = webdriver.Chrome(executable_path='chromedriver-linux64/chromedriver')
+
+    def load_homepage(self) -> None:
+        """Loads the website homepage"""
+        
+        self.driver.get(self.base_url)
+        time.sleep(3) # Let the homepage load
     
     def accept_cookies(self) -> None:
         """Method to accept cookies if prompted"""
@@ -19,24 +25,54 @@ class RecipeScraper:
         except Exception as e:
             print(f"No cookie prompt found: {e}")
 
+    def click_recipes_button(self) -> None:
+        """Clicks the 'Recipes' button to navigate to the recipe pages"""
+
+        if "pickuplimes" in self.base_url:
+            button = self.driver.find_elements(By.CSS_SELECTOR, 'body > header > nav > div.container > div:nth-child(3) > ul > li:nth-child(1) > a')
+        elif "gazoakleychef" in self.base_url:
+            button = self.driver.find_elements(By.CSS_SELECTOR, '#menu-item-61055 > a')
+        elif "rainbowplantlife" in self.base_url:
+            button = self.driver.find_elements(By.CSS_SELECTOR, '#menu-item-407 > a')
+        else:
+            raise ValueError("Couldnt find recipes button")
+
+        button.click() # Click recipes button
+        time.sleep(3) # Wait for page to load
+
+    def navigate_to_recipes(self) -> None:
+        """Navigates from the home page to the recipe lists"""
+
+        self.load_homepage()
+        self.accept_cookies()
+        self.click_recipes_button()
+
+
     def get_recipe_links(self) -> list:
         """Extracts all recipe links from a page"""
 
-        self.driver.get(self.base_url)
-        self.accept_cookies()
-
-        recipe_links = []
-        #recipes = self.driver.find_elements(By.CSS_SELECTOR, '')
-
-        #for recipe in recipes:
-            #recipe_links.append(recipe.get_attribute('href'))
+        # Step 1: Navigate to racipe list page
+        self.navigate_to_recipes()
+        
+        #Step 2: Find the recipe links
+        if "pickuplimes" in self.base_url:
+            recipe_elements = self.driver.find_elements(By.CSS_SELECTOR, '#index-item-container > div > div.col-lg-10 > ul')
+        elif "gazoakleychef" in self.base_url:
+            recipe_elements = self.driver.find_elements(By.CSS_SELECTOR, '#results > div')
+        elif "rainbowplantlife" in self.base_url:
+            recipe_elements = self.driver.find_elements(By.CSS_SELECTOR, '#outer-wrapper')
+        else:
+            raise ValueError("Couldnt find recipes")
+        
+        # Step 3: Extract the href from each recipe 
+        recipe_links = [recipe.get_attribute('href') for recipe in recipe_elements if recipe.get_attribute('href')]
 
         return recipe_links
     
     def scrape_recipe(self, recipe_url) -> dict:
         """Extracts core data points from a single recipe"""
 
-        self.drive.get(recipe_url)
+        self.driver.get(recipe_url)
         time.sleep(3)
 
         # Step 1: Get recipe name
@@ -102,15 +138,8 @@ if __name__ == "__main__":
         print(f"Scraping recipes from {scraper_name}...")
     
         # Step 2: Get list of recipe links
-
-        # Example recipe
-        recipe_urls = {
-            'PickUpLimes': 'https://www.pickuplimes.com/recipe/dan-dan-noodles-894',
-            'AvantGuardeVegan': 'https://www.gazoakleychef.com/recipes/stuffed-tomatoes/',
-            'RainbowplantLife': 'https://rainbowplantlife.com/malaysian-curry-noodle-soup/'
-        }
         #recipe_links = scraper.get_recipe_links()
-        recipe_links = recipe_urls
+        recipe_links = scraper.get_recipe_links()
         
 
         # Step 3: Scrape each recipe
@@ -121,10 +150,13 @@ if __name__ == "__main__":
             # Add recipe to master list
             all_recipes.append(recipe_data)
 
-    # Get recipe name
-    recipe_url = recipe_urls[scraper_name]
-    recipe_name = scraper.get_recipe_name(recipe_url)
-    print(f"Recipe Name from {scraper_name}: {recipe_name}")
+    # Example recipe
+    recipe_urls = {
+        'PickUpLimes': 'https://www.pickuplimes.com/recipe/dan-dan-noodles-894',
+        'AvantGuardeVegan': 'https://www.gazoakleychef.com/recipes/stuffed-tomatoes/',
+        'RainbowplantLife': 'https://rainbowplantlife.com/malaysian-curry-noodle-soup/'
+    }
 
-    scraper.close()
+    for scraper in scrapers.values():
+        scraper.close()
 
